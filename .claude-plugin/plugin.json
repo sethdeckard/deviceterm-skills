@@ -1,0 +1,13 @@
+{
+  "name": "deviceterm",
+  "version": "0.1.0",
+  "description": "Skills for driving Apple devices from inside a DeviceTerm tab: orientation, app verification, App Store screenshots, accessibility audits, bug reproduction, and tab titling.",
+  "author": {
+    "name": "Seth Deckard",
+    "url": "https://deviceterm.com"
+  },
+  "repository": "https://github.com/sethdeckard/deviceterm-skills",
+  "homepage": "https://deviceterm.com",
+  "license": "MIT",
+  "skills": "./skills/claude/"
+}

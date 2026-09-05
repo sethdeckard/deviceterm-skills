@@ -1,0 +1,12 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Loadout install output. `.claude-plugin/` is tracked and is not this;
+# these two are the project-scoped trees Loadout writes when equipping.
+.claude/
+.codex/
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,19 @@
+{
+  "name": "deviceterm-tab-titles",
+  "description": "Read every visible DeviceTerm tab, summarize what each one is doing, and retitle it so the tab strip is scannable. Use when asked to name, label, retitle, or tidy up tabs, or to say what each tab is working on. Requires an automation tab, because reading and retitling another tab needs a live automation grant that only a person can issue from the GUI. Proposes every title for approval before renaming anything.",
+  "tags": [
+    "deviceterm",
+    "automation",
+    "tabs",
+    "workspace"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}

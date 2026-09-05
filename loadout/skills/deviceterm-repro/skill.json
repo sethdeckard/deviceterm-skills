@@ -1,0 +1,20 @@
+{
+  "name": "deviceterm-repro",
+  "description": "Reproduce a reported bug on a Simulator from inside a DeviceTerm tab, and capture evidence of what happened. Use when asked to reproduce, triage, confirm, or investigate a bug report, crash, or user-reported issue in an iOS, iPadOS, watchOS, or tvOS app. Sets up device preconditions with xcrun simctl, drives to the failing state with deviceterm input, and collects screenshots, accessibility trees, and device logs. Covers what changes on a mirrored physical device, where most of that tooling does not exist.",
+  "tags": [
+    "deviceterm",
+    "ios",
+    "simulator",
+    "debugging",
+    "triage"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}

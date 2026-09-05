@@ -1,0 +1,20 @@
+{
+  "name": "deviceterm-a11y-audit",
+  "description": "Audit an app's accessibility on a Simulator from inside a DeviceTerm tab. Use when asked to check accessibility, VoiceOver labels, a11y coverage, hit target sizes, or Dynamic Type behavior in an iOS, iPadOS, watchOS, or tvOS app. Sweeps the accessibility tree for unlabeled controls and undersized touch targets, and drives text size changes through xcrun simctl.",
+  "tags": [
+    "deviceterm",
+    "ios",
+    "simulator",
+    "accessibility",
+    "audit"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "deviceterm-skills",
+  "owner": {
+    "name": "Seth Deckard",
+    "url": "https://github.com/sethdeckard"
+  },
+  "plugins": [
+    {
+      "name": "deviceterm",
+      "description": "Skills for driving Apple devices from inside a DeviceTerm tab: orientation, app verification, App Store screenshots, accessibility audits, bug reproduction, and tab titling.",
+      "author": {
+        "name": "Seth Deckard"
+      },
+      "category": "development",
+      "source": {
+        "source": "github",
+        "repo": "sethdeckard/deviceterm-skills"
+      },
+      "homepage": "https://deviceterm.com",
+      "license": "MIT"
+    }
+  ]
+}

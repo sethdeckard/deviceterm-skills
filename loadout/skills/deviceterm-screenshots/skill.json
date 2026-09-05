@@ -1,0 +1,20 @@
+{
+  "name": "deviceterm-screenshots",
+  "description": "Capture App Store and marketing screenshots of an app across device families, locales, and light or dark appearance, from inside a DeviceTerm tab. Use when asked for App Store screenshots, store listing images, marketing captures, or a screenshot matrix. Combines xcrun simctl for status bar, appearance, and capture with deviceterm input for navigating to each screen.",
+  "tags": [
+    "deviceterm",
+    "ios",
+    "simulator",
+    "screenshots",
+    "app-store"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}

@@ -1,0 +1,31 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # skill.json and the SKILL.md frontmatter are each authoritative on a
+      # different install path, so a drift between them ships two different
+      # descriptions for one skill and nothing else in the repo would notice.
+      - name: Check skill metadata
+        run: ./scripts/check-metadata.sh
+
+      # zsh is not guaranteed on the runner image, and check-snippets.sh skips
+      # itself when it is missing, which would turn this into a silent pass.
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      - name: Check shell snippets
+        run: ./scripts/check-snippets.sh
+
+      # skills/ is committed so people can copy without running anything.
+      # That only holds if it tracks loadout/skills/, which nothing else
+      # enforces.
+      - name: Check generated skills are current
+        run: ./scripts/build-skills.sh --check

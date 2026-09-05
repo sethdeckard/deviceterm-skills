@@ -1,0 +1,19 @@
+{
+  "name": "deviceterm-skills",
+  "interface": {
+    "displayName": "DeviceTerm"
+  },
+  "plugins": [
+    {
+      "name": "deviceterm",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

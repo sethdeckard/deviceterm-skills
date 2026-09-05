@@ -1,0 +1,19 @@
+{
+  "name": "deviceterm",
+  "description": "Orient inside DeviceTerm and route to its CLI. Use when working in a DeviceTerm tab, or when a task involves driving an iOS, iPadOS, watchOS, or tvOS Simulator or a mirrored iPhone or iPad: tapping, typing, swiping, reading the accessibility tree, or managing tabs and panes. Establishes what the deviceterm CLI owns, what belongs to xcrun simctl and devicectl, and where the authoritative command reference lives.",
+  "tags": [
+    "deviceterm",
+    "ios",
+    "simulator",
+    "terminal"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}

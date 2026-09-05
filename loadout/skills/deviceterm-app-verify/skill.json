@@ -1,0 +1,20 @@
+{
+  "name": "deviceterm-app-verify",
+  "description": "Drive an app on a Simulator from inside a DeviceTerm tab and verify what it actually did. Use when asked to test, exercise, walk through, smoke-check, or confirm a flow in an iOS, iPadOS, watchOS, or tvOS app: tapping through a screen, typing into a field, or confirming a control or label appeared. Pairs deviceterm input with accessibility reads and screenshots as evidence rather than trusting a command receipt. Covers what changes on a mirrored physical device, where structural verification is not available.",
+  "tags": [
+    "deviceterm",
+    "ios",
+    "simulator",
+    "testing",
+    "accessibility"
+  ],
+  "targets": [
+    "claude",
+    "codex"
+  ],
+  "codex": {
+    "policy": {
+      "allow_implicit_invocation": true
+    }
+  }
+}
