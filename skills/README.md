@@ -13,7 +13,7 @@ already built:
   policy, and what `.codex-plugin/plugin.json` points at.
 
 Install one by copying the whole directory, not the `SKILL.md` alone, because
-two of the skills invoke a helper script that sits beside it and two keep a
+one of the skills invokes a helper script that sits beside it and two keep a
 `references/` page:
 
 ```sh

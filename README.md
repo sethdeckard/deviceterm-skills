@@ -84,8 +84,8 @@ cp -R skills/codex/deviceterm  ~/.codex/skills/
 Copy from `skills/`, not from `loadout/skills/`. The source tree carries a
 `skill.json` that only Loadout reads, and the Codex tree additionally carries
 the `agents/openai.yaml` invocation policy a copy of the source would not have.
-Copy the whole directory rather than the `SKILL.md` alone: two of the skills
-invoke a helper script that sits beside it, and two keep a `references/` page
+Copy the whole directory rather than the `SKILL.md` alone: one of the skills
+invokes a helper script that sits beside it, and two keep a `references/` page
 their `SKILL.md` links to.
 
 ## Requirements
@@ -95,8 +95,8 @@ The skills expect to run in a DeviceTerm tab. The orientation skill checks
 device control reachable from outside.
 
 Most workflows also use `xcrun simctl`, which comes with Xcode. The
-accessibility audit and tab-titles skills each ship a `python3` helper; the
-other four have no bundled helper and need no interpreter.
+accessibility audit skill ships a `python3` helper; the other five have no
+bundled helper and need no interpreter.
 
 ## Versions
 

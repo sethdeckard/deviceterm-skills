@@ -46,10 +46,9 @@ against a live device and which you didn't. A recipe nobody has run is still
 worth having, as long as it's labeled that way.
 
 Helper scripts can be tested without a device by putting a stub `deviceterm` on
-`PATH` that prints fixture JSON. Test the failure paths too. Both helpers
-reserve exit 4 for "the lookup could not run", and it's easy to regress that
-into exit 1, which one helper uses for "no findings" and the other for "no tabs
-visible".
+`PATH` that prints fixture JSON. Test the failure paths too. `ax-audit.py`
+reserves exit 4 for "the audit could not run", and it's easy to regress that
+into exit 1, which means findings were reported.
 
 ## Prose and instructions
 

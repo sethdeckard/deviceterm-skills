@@ -145,9 +145,8 @@ Executable, with a comment saying why the helper exists rather than what it
 does.
 
 Test them offline by putting a stub `deviceterm` on `PATH` that prints fixture
-JSON. That is how to check `tab-map.py`'s grouping against a hand-written
-`tabs list` response, including a split tab whose sessions share one `tabId`,
-without a running daemon.
+JSON. That is how to check `ax-audit.py` against hand-written `ax tree` and
+`ax sweep` responses, including a truncated sweep, without a running daemon.
 
 ## Docs
 
