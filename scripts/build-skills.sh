@@ -31,6 +31,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 exec python3 - "$root" "${1:-}" <<'PY'
+import fnmatch
 import json
 import os
 import shutil
@@ -77,8 +78,24 @@ def body_of(path):
     return rest[rest.find("\n---\n") + 5:]
 
 
+# Bytecode is not content. `python3 -m py_compile` on a helper leaves
+# `__pycache__` beside it, and copying that through would publish a .pyc
+# built for whoever's interpreter ran last to anyone following README's
+# `cp -R skills/claude/<name>` instructions.
+#
+# One tuple drives both paths. If only the copy ignored a pattern,
+# --check would flag an artifact the build omits; if only the comparison
+# ignored it, the build would publish an artifact --check cannot see.
+BYTECODE = ("__pycache__", "*.pyc", "*.pyo")
+IGNORED = shutil.ignore_patterns(*BYTECODE)
+
+
+def is_bytecode(name):
+    return any(fnmatch.fnmatch(name, pattern) for pattern in BYTECODE)
+
+
 def copy_tree(src, dst):
-    shutil.copytree(src, dst)
+    shutil.copytree(src, dst, ignore=IGNORED)
     for base, _dirs, files in os.walk(dst):
         for name in files:
             path = os.path.join(base, name)
@@ -157,8 +174,14 @@ def build_into(out_root):
 
 def snapshot(base):
     files = {}
-    for dirpath, _dirs, names in os.walk(base):
+    for dirpath, dirs, names in os.walk(base):
+        # Skip here as well as in copy_tree: --check compares a fresh
+        # build against skills/ on disk, and bytecode left in either one
+        # would report as a difference in a file that carries no content.
+        dirs[:] = [d for d in dirs if not is_bytecode(d)]
         for name in names:
+            if is_bytecode(name):
+                continue
             path = os.path.join(dirpath, name)
             rel = os.path.relpath(path, base)
             executable = bool(os.stat(path).st_mode & stat.S_IXUSR)
