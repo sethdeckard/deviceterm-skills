@@ -8,7 +8,7 @@ description: "Orient inside DeviceTerm and route to its CLI. Use when working in
 DeviceTerm is a macOS terminal that runs live Apple device panes beside your
 shell. The tab is the workspace: one shell, plus the device panes that tab owns.
 
-Authored against deviceterm 0.6.0. **The CLI is the authority.** Where this
+Authored against deviceterm 0.8.0. **The CLI is the authority.** Where this
 skill and `deviceterm help <verb>` disagree, believe the binary and say so.
 
 ## Confirm you are in a tab before anything else
@@ -30,12 +30,12 @@ argument, and never strip these from a subprocess environment.
 Pane attachment is shim-driven. `xcrun simctl boot <UDID>` run inside a tab
 hits DeviceTerm's shim first, which asks the daemon to attach the booted
 Simulator to that tab. A Simulator booted anywhere else stays invisible to
-`deviceterm panes list` however healthy it is.
+`deviceterm pane list` however healthy it is.
 
 When an input command reports no device pane, check in this order:
 
 ```sh
-deviceterm panes list
+deviceterm pane list
 which xcrun
 deviceterm doctor
 ```
@@ -51,8 +51,8 @@ elsewhere, and for mirroring a connected iPhone or iPad.
 
 The `deviceterm` CLI owns input, accessibility, and the workspace: `tap`,
 `swipe`, `long-press`, `pinch`, `app-switcher`, `button`, `key`, `text`,
-`rotate`, `crown`, `ax tree|point|sweep`, panes, tabs, windows, `events`, and
-`doctor`.
+`rotate`, `crown`, `ax tree|point|sweep`, the `window`, `tab`, and `pane`
+resources, `events`, and `doctor`.
 
 Apple's tools own the device's lifecycle and content. **The verbs below do not
 exist in deviceterm. Do not go looking for them.**
@@ -119,27 +119,43 @@ normalization in the CLI instead of copied into each recipe. The blocking
 ## Authority
 
 A live automation grant is created only by a person, through
-Shell > Open Automation Tab. Three tiers need it, and the difference matters:
+Shell > Open Automation Tab. Three rules, and the difference between them
+matters:
 
-1. **Always.** Seven verbs are refused without a grant no matter what they
-   target: `tab open`, `tab select`, `tab move`, `window open`, `window focus`,
-   `tab send-input`, and `tab capture`.
-2. **Outside your own tab.** `tab rename` and the pane verbs are allowed on a
-   tab you own a terminal in, and need a grant for anyone else's. So a
-   *cross-tab* rename needs one even though `tab rename` is not in the list
-   above.
-3. **`tab close`** additionally needs your tab to be the sole terminal, because
-   the trust unit is the session and a tab can hold several.
+1. **Always gated.** Eight commands are refused without a grant no matter what
+   they target: `tab open`, `tab focus`, `tab move`, `window open`,
+   `window focus`, `pane focus`, `pane send-input`, and `pane capture-text`.
+   They create or rearrange workspace surfaces, change focus, or read or drive
+   terminal contents. The grant check is independent of target ownership, so
+   owning the tab does not exempt you. That list is closed.
+2. **Ownership, which a grant can stand in for.** Mutations are allowed on what
+   you own, `tab close`, `window close`, `tab rename`, `tab protect`,
+   `tab unprotect`, `pane split`, `pane close`, and `pane rename` among them. A
+   grant satisfies the same check for someone else's visible surfaces, so your
+   own tab needs no grant and a sibling's does. This list is open, unlike rule
+   1, so treat an unlisted mutation as ownership-gated rather than free.
+3. **Protection, which a grant cannot stand in for.** A protected tab is
+   invisible to every session outside it, and no grant makes it visible.
 
-Reading tier 1 as the whole rule is the trap: it suggests everything else is
+Three edges inside rule 2. A terminal pane is its own trust unit, so owning one
+terminal in a split tab does not let you close or rename its sibling.
+`tab close` needs your tab to be the sole terminal, because a tab can hold
+several. And `window close` needs that of every tab in the window, so one
+sibling terminal anywhere in it refuses the close.
+
+Reading rule 1 as the whole story is the trap: it suggests everything else is
 unrestricted across tabs, and it is not.
 
 There is no CLI escalation path, so a script cannot grant itself authority and
-cannot open its own first tab or window. A refusal arrives as
-`error.scope_violation`, or a message starting `intent.automationRequired`.
+cannot open its own first tab or window. It can still `pane split` its own tab.
+Under `--json` a refusal carries `intent.automationRequired` when the resolved
+target needs ownership you lack or a grant, and `session.unauthorized` when
+session authority itself is refused. Branch on `.error.code`.
 
-`$DEVICETERM_SESSION_ROLE` is descriptive metadata, not permission. A verb
-listed by `deviceterm help` can still be refused.
+`$DEVICETERM_SESSION_ROLE` is descriptive metadata, not permission. The role
+stays descriptive when the grant is missing or revoked, so a tab can read
+`automation` while holding no authority at all. A verb listed by
+`deviceterm help` can still be refused.
 
 ## Never shut down a Simulator you did not boot
 

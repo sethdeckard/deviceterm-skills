@@ -5,7 +5,7 @@ description: "Reproduce a reported bug on a Simulator from inside a DeviceTerm t
 
 # Reproduce a bug report
 
-Authored against deviceterm 0.6.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 The deliverable is a verdict backed by evidence: reproduced, not reproduced, or
@@ -39,8 +39,9 @@ deviceterm: multiple panes in this tab; pass --pane <ref>:
   rpvgzr      sim     ee15455f-838b-4721-9794-dc51c29b6d8e
 ```
 
-Exit 1, with no work done. Omitting `--pane` only works while exactly one pane
-is attached, which is not a state you control.
+Exit 1, with no work done. Omitting `--pane` only works while exactly one device
+pane is attached, which is not a state you control. Terminal panes are panes
+too, but never the target of a device verb.
 
 Set both variables together, to the device you booted. `simctl` needs the UDID
 and deviceterm needs the pane, and they are the same value:
@@ -53,12 +54,15 @@ DT_PANE=$UDID
 When you did not boot it yourself, list the panes and choose one:
 
 ```sh
-deviceterm panes list
+deviceterm pane list
 ```
 
-Then set both to the UDID you mean. Taking the first row programmatically turns
-a loud disambiguation failure into a silent one, where the run drives whichever
-device sorted first and every later assertion is about the wrong screen.
+Then set both to the UDID you mean. Taking the first row programmatically
+sidesteps the loud error above, and what you get instead depends on what that
+row is. The list is in layout order and includes terminal panes: a terminal
+fails at once with `pane.notFound`, since a device verb cannot resolve it, while
+the wrong device succeeds quietly and puts every later assertion on the wrong
+screen. The quiet one is what costs a run.
 
 Hold the **UDID**, not the short ref. Refs are minted per mount, so a Simulator
 reboot reissues them and a ref baked into a script silently drives whatever
@@ -72,16 +76,18 @@ one the user already had, because several of these steps destroy device state.
 ```sh
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b
-deviceterm panes list
+deviceterm pane list
 ```
 
-An empty pane list means the boot bypassed the shim and no input will reach the
-device. The `deviceterm` skill covers that diagnosis.
+If the pane list has no Simulator pane for `$UDID`, that Simulator is not
+attached to this tab, so the boot bypassed the shim and no input will reach the
+device. The `deviceterm` skill covers that diagnosis. The list itself is never
+empty, since it carries every pane in the tab including your own terminal.
 
-Then wait for it to be ready. A row in `panes list` is not readiness: `state`
-is one of `booting`, `rendering`, `shutdown`, or `failed`, and **only
-`rendering` can answer input or an accessibility read**. Acting earlier makes
-every helper failure ambiguous, because a missing element and a pane that is
+Then wait for it to be ready. A row in `pane list` is not readiness: when
+present, `.simulator.state` is one of `booting`, `rendering`, `shutdown`, or
+`failed`. **Wait for `rendering` before acting**, so a readiness failure cannot
+be mistaken for a missing element: a control that is absent and a pane that is
 not up yet look identical.
 
 ```sh
