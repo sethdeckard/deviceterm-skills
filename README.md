@@ -100,7 +100,7 @@ bundled helper and need no interpreter.
 
 ## Versions
 
-Requires deviceterm 0.8.0 or later.
+Requires deviceterm 0.11.0 or later.
 
 DeviceTerm is 0.x, where a minor release may break the CLI, so every skill tells
 the agent to believe `deviceterm help <verb>` over the skill when the two

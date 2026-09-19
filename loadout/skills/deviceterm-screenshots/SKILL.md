@@ -5,7 +5,7 @@ description: "Capture App Store and marketing screenshots of an app across devic
 
 # App Store screenshots
 
-Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.11.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 A screenshot run is a matrix. Each cell is one device family, one locale, one
@@ -145,22 +145,24 @@ the block under `set -e`, or check each status.
 **If step 2 fails, diagnose before rerunning.** `wait pane rendering` blocks
 until the pane renders and exits 0; a cold boot gets there in about a second,
 well inside the 30000 ms default, and `--timeout <ms>` moves the bound. Its exit
-code says which thing went wrong, which a hand-rolled poll cannot: 124 is the
-deadline, while transport, authentication and pane-resolution failures each keep
-their own code.
+code narrows the problem without settling it:
 
-A deadline usually means no pane was ever attached, not a slow boot. Check:
+- **`pane.notFound`, exit 1.** The reference matched nothing when the wait gave
+  up: either no pane for that UDID ever appeared, or one appeared and then went
+  away. The second arm returns immediately rather than at the deadline.
+- **`wait.timeout`, exit 124.** The deadline expired: either the pane resolved
+  and never reached `rendering`, or the roster request itself never completed,
+  in which case nothing resolved at all.
 
-```sh
-deviceterm pane list
-```
+Transport and authentication failures keep their own codes.
 
-If the list has no Simulator pane for `$UDID`, that Simulator is not attached to
-this tab, so waiting longer will not make input reach it. The `deviceterm` skill
-covers that diagnosis. The list is never empty, since it carries every pane in
-the tab including your own terminal. A row is not readiness either: when
-present, `.simulator.state` is one of `booting`, `rendering`, `shutdown`, or
-`failed`, so wait for `rendering` before acting.
+**Neither code proves whether the attach succeeded.** Read the error message and
+the current `deviceterm pane list` before concluding that the boot bypassed the
+shim, which is the diagnosis the `deviceterm` skill covers. That list is never
+empty, since it carries every pane in the tab including your own terminal. A row
+in it is not readiness either: when present, `.simulator.state` is one of
+`booting`, `rendering`, `shutdown`, or `failed`, so wait for `rendering` before
+acting.
 
 
 ## Landscape

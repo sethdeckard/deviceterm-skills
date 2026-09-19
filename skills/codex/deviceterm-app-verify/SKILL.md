@@ -5,7 +5,7 @@ description: "Drive an app on a Simulator from inside a DeviceTerm tab and verif
 
 # Drive and verify an app
 
-Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.11.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 The whole job is one loop, run once per step of the flow:
@@ -64,15 +64,12 @@ Boot inside the tab so the shim attaches the pane:
 xcrun simctl boot "$UDID"
 ```
 
-If `deviceterm pane list` shows no Simulator pane for `$UDID`, that Simulator is
-not attached to this tab and input cannot reach it. The list is never empty: it
-carries every pane in the tab, your own terminal included.
+**The pane does not exist yet when that returns.** The shim hands the boot to
+the GUI and returns without waiting for the pane to be minted, so a `pane list`
+run immediately afterwards normally shows your terminal and nothing else. That
+is the expected state, not evidence the boot bypassed the shim.
 
-Then wait for it to be ready. A row in `pane list` is not readiness: when
-present, `.simulator.state` is one of `booting`, `rendering`, `shutdown`, or
-`failed`. **Wait for `rendering` before acting**, so a readiness failure cannot
-be mistaken for a missing element: a control that is absent and a pane that is
-not up yet look identical.
+Wait for the pane rather than polling for it:
 
 ```sh
 deviceterm wait pane rendering --pane "$DT_PANE"
@@ -82,10 +79,30 @@ It blocks until the pane renders and exits 0. A cold boot reaches `rendering` in
 about a second, well inside the 30000 ms default; `--timeout <ms>` moves the
 bound. Pane refs resolve case-insensitively, so the UDID needs no folding.
 
-The exit code says which thing went wrong, which a hand-rolled poll cannot: 124
-is the deadline, while transport, authentication and pane-resolution failures
-each keep their own code. Do not wrap this in a retry loop — it is already the
-loop, and retrying hides the codes that tell you what broke.
+**Wait for `rendering` before acting**, so a readiness failure cannot be
+mistaken for a missing element: a control that is absent and a pane that is not
+up yet look identical. A row in `pane list` is not readiness either: when
+present, `.simulator.state` is one of `booting`, `rendering`, `shutdown`, or
+`failed`.
+
+The exit code narrows the problem without settling it:
+
+- **`pane.notFound`, exit 1.** The reference matched nothing when the wait gave
+  up: either no pane for that UDID ever appeared, or one appeared and then went
+  away. The second arm returns immediately rather than at the deadline.
+- **`wait.timeout`, exit 124.** The deadline expired: either the pane resolved
+  and never reached `rendering`, or the roster request itself never completed,
+  in which case nothing resolved at all.
+
+Transport and authentication failures keep their own codes.
+
+**Neither code proves whether the attach succeeded.** Read the error message and
+the current `deviceterm pane list` before concluding that the boot bypassed the
+shim or that the device stalled. That list is never empty, since it carries
+every pane in the tab including your own terminal.
+
+Do not wrap this in a retry loop — it is already the loop, and retrying hides
+the codes that tell you what broke.
 
 If you need orientation on DeviceTerm itself, or the pane never appears, use the
 `deviceterm` skill.
@@ -101,6 +118,18 @@ xcrun simctl launch "$UDID" com.example.YourApp
 
 deviceterm has no install or launch verb. That is deliberate, not an omission
 to work around.
+
+**`launch` returns when the process spawns, not when the app is on screen.** It
+prints a PID and exits 0 while SpringBoard is still bringing the app forward. An
+accessibility call in that window fails with
+`pane.ax.tree: frontmostApplication returned nil`, daemon code -32020, and that
+failure is terminal: `wait ax` throws it rather than retrying through it the way
+it retries a missing element. `wait pane rendering` does not cover this either,
+because the pane is already rendering. It is the app that is not up.
+
+The window is short, well under a second in practice. Treat a -32020 on the
+first accessibility call after a launch as retryable and run it again, rather
+than reporting that the app failed to launch.
 
 ## Locate
 

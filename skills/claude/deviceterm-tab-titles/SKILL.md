@@ -5,7 +5,7 @@ description: "Read every visible DeviceTerm tab, summarize what each one is doin
 
 # Retitle the tabs
 
-Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.11.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 Read each visible tab, work out what it is doing, and give it a short title.
@@ -19,67 +19,108 @@ grant. Only a person can issue one, from **Shell > Open Automation Tab**. There
 is no CLI escalation path, so if you are not in such a tab, this skill cannot
 run and no flag changes that.
 
-**Do not decide from the role string.** `$DEVICETERM_SESSION_ROLE` is
-descriptive metadata. A caller whose role still reads `automation` is refused
-like any other once the grant is gone, and it goes when the issuing GUI
-connection drops. Probe instead:
+Ask the daemon directly rather than inferring:
 
 ```sh
-deviceterm pane capture-text current >/dev/null
+deviceterm session show --json
 ```
 
-`current` resolves to your own terminal pane, so the probe reads a screen you
-are already looking at. Without a grant it fails with
-`intent.automationRequired`. Say so, tell the user to open an automation tab
-with **Shell > Open Automation Tab** and rerun there, and stop.
+`automationGrant` is always present and always a boolean, and it is the
+authority. A tab holding no grant gets `false` and **exit 0**, not a refusal, so
+this costs nothing to check first.
 
-## Build the tab list
-
-```sh
-deviceterm tab list --all --json
+```jsonc
+{"automationGrant":false,"id":"c5974ee1-...","role":"agent"}
 ```
 
-One row per tab. `--all` reaches every visible window; without it you see only
-your own window, which turns a workspace-wide job into a window-local one
-without saying so.
+Three ways to read this wrong:
 
-Four fields carry this skill:
+- **`role` is not the grant.** It is descriptive metadata and can read
+  `"automation"` while `automationGrant` is false, which is what you see once
+  the issuing GUI connection drops. Never branch on it, and never branch on
+  `$DEVICETERM_SESSION_ROLE` either.
+- **A missing daemon is not a missing grant.** An unreachable daemon fails with
+  `transport.unavailable` or `transport.timeout`, a nonzero exit, and no
+  `automationGrant` key at all. "You hold no grant" and "DeviceTerm is not
+  running" send the user to opposite fixes.
+- **`id` and `role` are absent outside a DeviceTerm tab.** That is still a
+  successful report with `automationGrant: false`.
 
-- `id` is the rename target and the read-back key.
-- `title` is the GUI's current display title, always present.
-- `name` is the assigned name, absent until someone sets one.
-- `current` is true for the one tab your own terminal sits in.
+On `false`, say so, tell the user to open an automation tab with
+**Shell > Open Automation Tab** and rerun there, and stop.
 
-**Exclude your own tab by dropping the row where `current` is true.** One row
-per tab means one flag per tab, so there is no grouping to do.
-
-Keep that row only if the user asks for the automation tab to be retitled too.
-Its default name is usually the more useful label.
-
-A list holding only your own row means no other tabs are visible. **That is not
-proof the workspace has one tab**, because protected tabs are absent from it.
-
-## Read each tab
-
-One `tab show` per tab, then one capture per terminal pane it holds:
+## Read the whole workspace in one call
 
 ```sh
-deviceterm tab show "$id" --json
+deviceterm pane list --all --json
+```
+
+`--all` spans every caller-visible tab in every window, ordered window, then
+tab, then layout. Without it you see only your own tab, which turns a
+workspace-wide job into a tab-local one without saying so. Passing `--all` and
+`--tab` together is a usage error.
+
+Every row carries the tab context, so this one call is both the tab list and the
+pane list:
+
+- `tabId` is the rename target and the grouping key.
+- `tabTitle` is the tab's current display title.
+- `windowId` groups tabs into windows.
+- `current` is true for your own terminal pane. **Drop that row's tab** unless
+  the user asked for the automation tab to be retitled too.
+- `kind` is `terminal`, `simulator`, or `device`. Only `terminal` rows can be
+  captured, and their `id` is what `pane capture-text` wants.
+
+Group the rows by `tabId` and you have the tabs, each with the terminals it
+holds. Counting its `kind == "terminal"` rows tells you how many captures that
+tab costs.
+
+**`tabTitle` is not the pane's title.** It follows the tab's focused pane, so
+every row in a split tab carries the same `tabTitle` and it describes only one
+of them. When the focused pane is a Simulator it takes that pane's name, and a
+terminal row's `tabTitle` then names something that is not a terminal at all.
+
+A result holding only your own row means no other tabs are visible. **That is
+not proof the workspace has one tab**, because protected tabs are absent from
+it.
+
+## `terminal.title` is free signal
+
+Every terminal row carries `terminal.title`, the pane's own label. It resolves
+to the first of these that survives normalization: the OSC 0/2 title the running
+program set, the pane's `name`, the basename of the shell's OSC 7 directory,
+then `"shell"`.
+
+Read it before deciding whether a capture is worth it. A row reporting
+`vim Login.swift` has already told you what that pane is doing; a row reporting
+`"shell"` has told you it will not.
+
+It is also the answer for a split tab, where one `tabTitle` covers several
+panes that are doing different things. Each terminal reports its own.
+
+Three things to know:
+
+- **`pane rename` writes `name`, which ranks below the OSC title**, so a renamed
+  pane keeps reporting whatever set that title. A shell normally sets one, so a
+  pane name usually never surfaces as the title at all. Read `name` for what the
+  user called the pane and `title` for what it is doing now.
+- **It can be absent.** `--json` relays the GUI's bytes unchanged, so a CLI
+  from a newer bundle paired with an older GUI emits terminal rows with no
+  `title` until DeviceTerm restarts. Test for the field and fall back to the
+  capture; why it is missing does not change what you do about it.
+- **It is live.** A title read moments apart can differ, because it follows
+  whatever the shell is doing.
+
+## Capture the terminals worth capturing
+
+```sh
 deviceterm pane capture-text "$paneId"
 ```
 
-`tab show` returns the tab plus `.panes[]`, each entry carrying a `kind`. Read
-that array and take the entries whose `kind` is `terminal`: those are the only
-ones `pane capture-text` accepts, and their `id` is what it wants.
-
-**Capture every terminal the tab holds, not just the first.** A split tab is
-often split precisely because two different things are happening in it, and
-reading one side gives you a title for half the tab. Say which panes produced
-the signal when you report.
-
-Count those terminal entries to know how many captures a tab costs. `paneCount`
-on the `tab list` row will not tell you: it counts every pane in the layout, so
-a tab holding a shell and a Simulator reports two and captures once.
+**Capture every terminal a tab holds, not just the first.** A split tab is often
+split precisely because two different things are happening in it, and reading
+one side gives you a title for half the tab. Say which panes produced the signal
+when you report.
 
 **Capture is the visible viewport, with no scrollback.** What you get is the
 screen right now. A tab whose interesting work scrolled off shows a bare prompt,
@@ -91,29 +132,35 @@ So the signal is uneven, and you should say which kind you got:
 - A bare prompt tells you almost nothing beyond the working directory.
 - A full-screen TUI tells you the tool, and often the file, but not the task.
 
-### The working directory comes free
+## The working directory comes free
 
-The same `tab show` response carries each terminal's live working directory, so
-a bare prompt still tells you which project the tab belongs to. Each terminal
-entry holds it at `terminal.cwd`; no extra call is needed.
+Terminal rows in that same `pane list --all` response carry a live working
+directory at `terminal.cwd`, so a bare prompt still tells you which project the
+tab belongs to. No extra call is needed.
+
+It is the one field in that response the grant gates. From an automation tab it
+appears on every terminal row, including panes in other tabs; from an ordinary
+tab the command still succeeds and the field is simply gone, even for the
+caller's own pane. Owning the terminal is not an exemption.
 
 Four things to know before you title from it:
 
-- **Absent is routine.** The field is omitted when the terminal's identity
-  cannot be verified, process metadata cannot be read, identity changes during
-  the read, or a fallback finds more than one qualifying process. The command
-  still succeeds. Check whether the field is there, rather than treating a
-  missing value as an empty one.
+- **Absent is routine.** Besides the ungranted case, DeviceTerm omits it when
+  the terminal's identity cannot be verified, process metadata cannot be read,
+  identity changes during the read, or a fallback finds more than one qualifying
+  process. Check whether the field is there rather than treating a missing value
+  as an empty one.
 - **It is a snapshot of the foreground process.** A nested interactive shell
   reports its own directory, and a foreground command that changes directory
   temporarily replaces the shell's value. Two reads can legitimately disagree.
 - **One read can be inconclusive** during a process handoff. If a title depends
   on it, read again rather than accepting the gap.
 - **It is never an identifier.** Two tabs in the same directory are still two
-  tabs, and `id` is what you key on.
+  tabs, and `tabId` is what you key on.
 
-It requires the same grant the capture does, so an ordinary tab sees the command
-succeed with the field simply missing.
+A `pane capture-text` receipt nests its own copy of the pane object, and that
+copy carries no `cwd` even for a granted caller. Read the directory from
+`pane list`, not from the capture.
 
 ## Propose before renaming
 
@@ -129,7 +176,7 @@ Show the whole plan and wait for approval:
 Then apply:
 
 ```sh
-deviceterm tab rename "$id" "Auth: login screen"
+deviceterm tab rename "$tabId" "Auth: login screen"
 ```
 
 The reference and the name are both positional. A name beginning with `-` is
@@ -149,8 +196,8 @@ The tab pill is narrow, so the title is read at a glance or not at all.
 
 **Never copy captured text or a path into a title verbatim.** A viewport can
 hold an API key, a token, a customer name, or a password prompt, and a working
-directory can carry a client's name. Summarize what the tab is for, and keep
-both out of the title and out of your report.
+directory or a `terminal.title` can carry a client's name. Summarize what the
+tab is for, and keep both out of the title and out of your report.
 
 ## Confirm the rename landed
 
@@ -161,13 +208,18 @@ title changed. Read it back:
 deviceterm tab list --all --json
 ```
 
-Key on `id`, the same column you renamed by.
+This is the one step `pane list` cannot do, because a pane row carries no tab
+`name`. Key on `id`, the same column you renamed by.
 
-**Compare both `name` and `title`.** `tab rename` assigns the name, and the GUI
-puts a manual rename at the top of the precedence chain behind the displayed
-title, so a rename that landed makes the two agree. `name` on its own is model
+**A landed rename makes `name` and `title` agree.** `tab rename` assigns the
+name, and the GUI puts a manual rename at the top of the precedence chain behind
+the displayed title, so both read the value you set. `name` on its own is model
 metadata; `title` is the label in the tab strip, which is the thing this skill
 set out to change.
+
+**An unnamed tab has no `name` key at all.** It is absent rather than empty, so
+test for its presence; comparing it as a string treats every never-renamed tab
+as though it were named `""`.
 
 ## Undoing it
 
@@ -175,26 +227,38 @@ A quoted empty string clears the name and returns the tab to its automatic
 title:
 
 ```sh
-deviceterm tab rename "$id" ""
+deviceterm tab rename "$tabId" ""
 ```
 
-A bare `deviceterm tab rename` is a usage error rather than a reset. Tell the
-user the empty-string form exists when you report, so a wrong title is not
-something they have to live with.
+That removes the `name` key outright and lets `title` fall back to the live
+shell title. A bare `deviceterm tab rename` is a usage error rather than a
+reset. Tell the user the empty-string form exists when you report, so a wrong
+title is not something they have to live with.
 
 ## What you cannot see
 
-Protected tabs are invisible to you. They do not appear in `tab list`, cannot be
-resolved by reference, and cannot be captured or renamed, and an automation
-grant does not change any of that. They are absent rather than refused, so a
-short list is not proof of how many tabs the workspace has.
+Protected tabs are invisible to you. They do not appear in `pane list` or
+`tab list`, cannot be resolved by reference, and cannot be captured or renamed,
+and an automation grant does not change any of that. They are absent rather than
+refused, so a short list is not proof of how many tabs the workspace has.
 
 Report the count you acted on rather than implying you covered everything.
 
 ## When a tab refuses
 
 A refusal on one tab is not a reason to stop on the rest. Record it, continue,
-and list the skipped tabs in the report. `intent.automationRequired` on a single
-tab after a successful probe usually means the grant was revoked mid-run, which
-happens when the issuing GUI connection drops; re-probe before concluding
-anything else.
+and list the skipped tabs in the report.
+
+Two codes, and they mean different things:
+
+- **`session.unauthorized`** is the grant being gone. `pane capture-text` is
+  refused before the request reaches the GUI, so this is what a capture returns
+  with no live grant. After a successful probe it usually means the grant was
+  revoked mid-run, which happens when the issuing GUI connection drops. Re-run
+  `session show` before concluding anything else.
+- **`intent.automationRequired`** is an ownership check the GUI raised on a
+  specific target, which is what `tab rename` returns for a tab you neither own
+  nor hold a grant for.
+
+Both carry `rpcCode -32011`, so the number cannot tell them apart. Branch on
+`.error.code`.

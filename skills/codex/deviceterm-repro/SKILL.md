@@ -5,7 +5,7 @@ description: "Reproduce a reported bug on a Simulator from inside a DeviceTerm t
 
 # Reproduce a bug report
 
-Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.11.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 The deliverable is a verdict backed by evidence: reproduced, not reproduced, or
@@ -76,31 +76,38 @@ one the user already had, because several of these steps destroy device state.
 ```sh
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b
-deviceterm pane list
-```
-
-If the pane list has no Simulator pane for `$UDID`, that Simulator is not
-attached to this tab, so the boot bypassed the shim and no input will reach the
-device. The `deviceterm` skill covers that diagnosis. The list itself is never
-empty, since it carries every pane in the tab including your own terminal.
-
-Then wait for it to be ready. A row in `pane list` is not readiness: when
-present, `.simulator.state` is one of `booting`, `rendering`, `shutdown`, or
-`failed`. **Wait for `rendering` before acting**, so a readiness failure cannot
-be mistaken for a missing element: a control that is absent and a pane that is
-not up yet look identical.
-
-```sh
 deviceterm wait pane rendering --pane "$DT_PANE"
 ```
 
-It blocks until the pane renders and exits 0. A cold boot gets there in about a
-second, well inside the 30000 ms default; `--timeout <ms>` moves the bound. Pane
-refs resolve case-insensitively, so the UDID needs no folding.
+**Do not look for the pane in `pane list` here.** The shim hands the boot to the
+GUI and returns without waiting for the pane to be minted, so the Simulator pane
+arrives after `simctl boot` has already returned. Its absence immediately
+afterwards does not mean the boot bypassed the shim.
 
-The exit code says which thing went wrong, which a hand-rolled poll cannot: 124
-is the deadline, while transport, authentication and pane-resolution failures
-each keep their own code.
+`wait pane rendering` blocks until the pane renders and exits 0. A cold boot gets
+there in about a second, well inside the 30000 ms default; `--timeout <ms>` moves
+the bound. Pane refs resolve case-insensitively, so the UDID needs no folding.
+
+**Wait for `rendering` before acting**, so a readiness failure cannot be mistaken
+for a missing element: a control that is absent and a pane that is not up yet
+look identical. A row in `pane list` is not readiness either: when present,
+`.simulator.state` is one of `booting`, `rendering`, `shutdown`, or `failed`.
+
+The exit code narrows the problem without settling it:
+
+- **`pane.notFound`, exit 1.** The reference matched nothing when the wait gave
+  up: either no pane for that UDID ever appeared, or one appeared and then went
+  away. The second arm returns immediately rather than at the deadline.
+- **`wait.timeout`, exit 124.** The deadline expired: either the pane resolved
+  and never reached `rendering`, or the roster request itself never completed,
+  in which case nothing resolved at all.
+
+Transport and authentication failures keep their own codes.
+
+**Neither code proves whether the attach succeeded.** Read the error message and
+the current `deviceterm pane list` before concluding that the boot bypassed the
+shim, which is the diagnosis the `deviceterm` skill covers. That list is never
+empty, since it carries every pane in the tab including your own terminal.
 
 
 Then apply the preconditions the report names:
@@ -145,6 +152,13 @@ per-step evidence will show it.
 
 ```sh
 xcrun simctl launch "$UDID" com.example.YourApp
+
+# launch returns when the process spawns, not when the app is frontmost. An
+# accessibility call in that window fails with daemon code -32020,
+# `frontmostApplication returned nil`, and the wait verbs throw it rather than
+# retrying through it. The window is short; retry the first call yourself
+# instead of reporting that the app failed to launch.
+deviceterm wait ax --label "<something only the first screen has>" --pane "$DT_PANE"
 
 deviceterm tap --label "Continue" --role Button --pane "$DT_PANE"
 deviceterm wait ax --label "<something only the next screen has>" --pane "$DT_PANE"

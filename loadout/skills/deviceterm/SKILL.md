@@ -8,7 +8,7 @@ description: "Orient inside DeviceTerm and route to its CLI. Use when working in
 DeviceTerm is a macOS terminal that runs live Apple device panes beside your
 shell. The tab is the workspace: one shell, plus the device panes that tab owns.
 
-Authored against deviceterm 0.8.0. **The CLI is the authority.** Where this
+Authored against deviceterm 0.11.0. **The CLI is the authority.** Where this
 skill and `deviceterm help <verb>` disagree, believe the binary and say so.
 
 ## Confirm you are in a tab before anything else
@@ -148,9 +148,12 @@ unrestricted across tabs, and it is not.
 
 There is no CLI escalation path, so a script cannot grant itself authority and
 cannot open its own first tab or window. It can still `pane split` its own tab.
-Under `--json` a refusal carries `intent.automationRequired` when the resolved
-target needs ownership you lack or a grant, and `session.unauthorized` when
-session authority itself is refused. Branch on `.error.code`.
+
+The two gates answer with different codes. Rule 1 refuses with
+`session.unauthorized`, because those eight are stopped before the request
+reaches the GUI. Rule 2 refuses with `intent.automationRequired`, which is the
+GUI's answer when the target needs ownership you lack. Both carry rpcCode
+-32011, so the number cannot tell them apart; branch on `.error.code`.
 
 `$DEVICETERM_SESSION_ROLE` is descriptive metadata, not permission. The role
 stays descriptive when the grant is missing or revoked, so a tab can read

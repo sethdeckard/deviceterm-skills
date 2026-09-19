@@ -5,7 +5,7 @@ description: "Audit an app's accessibility on a Simulator from inside a DeviceTe
 
 # Accessibility audit
 
-Authored against deviceterm 0.8.0. Where this skill and `deviceterm help <verb>`
+Authored against deviceterm 0.11.0. Where this skill and `deviceterm help <verb>`
 disagree, believe the binary.
 
 ## State the limit before you start
